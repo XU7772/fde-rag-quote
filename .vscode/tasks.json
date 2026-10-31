@@ -1,0 +1,61 @@
+{
+  "version": "2.0.0",
+  "tasks": [
+    {
+      "label": "后端 · 启动",
+      "type": "shell",
+      "command": "python -m uvicorn backend.main:app --reload --port 8000",
+      "options": { "cwd": "${workspaceFolder}" },
+      "problemMatcher": [],
+      "presentation": { "reveal": "always", "panel": "dedicated" }
+    },
+    {
+      "label": "前端 · 开发服务器",
+      "type": "shell",
+      "command": "npm run dev",
+      "options": { "cwd": "${workspaceFolder}/frontend" },
+      "problemMatcher": [],
+      "presentation": { "reveal": "always", "panel": "dedicated" }
+    },
+    {
+      "label": "前端 · 构建",
+      "type": "shell",
+      "command": "npm run build",
+      "options": { "cwd": "${workspaceFolder}/frontend" },
+      "problemMatcher": []
+    },
+    {
+      "label": "评测 · 全部",
+      "dependsOrder": "sequence",
+      "dependsOn": ["评测 · 检索", "评测 · 规则", "评测 · 可复现"],
+      "problemMatcher": []
+    },
+    {
+      "label": "评测 · 检索",
+      "type": "shell",
+      "command": "python scripts/eval_retrieval.py",
+      "options": { "cwd": "${workspaceFolder}" },
+      "env": { "PYTHONIOENCODING": "utf-8", "PYTHONUTF8": "1" },
+      "problemMatcher": [],
+      "presentation": { "reveal": "always", "panel": "dedicated" }
+    },
+    {
+      "label": "评测 · 规则",
+      "type": "shell",
+      "command": "python scripts/eval_rules.py",
+      "options": { "cwd": "${workspaceFolder}" },
+      "env": { "PYTHONIOENCODING": "utf-8", "PYTHONUTF8": "1" },
+      "problemMatcher": [],
+      "presentation": { "reveal": "always", "panel": "dedicated" }
+    },
+    {
+      "label": "评测 · 可复现",
+      "type": "shell",
+      "command": "python scripts/eval_reproducibility.py",
+      "options": { "cwd": "${workspaceFolder}" },
+      "env": { "PYTHONIOENCODING": "utf-8", "PYTHONUTF8": "1" },
+      "problemMatcher": [],
+      "presentation": { "reveal": "always", "panel": "dedicated" }
+    }
+  ]
+}
