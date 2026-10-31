@@ -1,5 +1,7 @@
 import { fmt, useCountUp, useTypewriter } from '../lib'
 
+const LEVEL_LABEL = { error: '阻断', warn: '提示', info: '记录' }
+
 function Change({ pct }) {
   if (pct == null) return <span className="muted">无历史</span>
   const up = pct > 0
@@ -10,10 +12,63 @@ function Change({ pct }) {
   )
 }
 
+/** 参考价：p50 + 本次偏离。检索不到时什么都不显示，不占位。 */
+function ReferenceHint({ reference, deviation }) {
+  if (!reference?.available) return null
+  return (
+    <small className="ref-hint">
+      参考 {fmt(reference.p50)}
+      {deviation != null && (
+        <span className={`ref-dev ${deviation > 0 ? 'up' : 'down'}`}>
+          {deviation > 0 ? '+' : ''}
+          {deviation.toFixed(1)}%
+        </span>
+      )}
+    </small>
+  )
+}
+
+function Checks({ violations }) {
+  return (
+    <section className="checks">
+      <div className="panel-head">
+        <span>工艺校验</span>
+        <span className="mono">RULES.MD → 确定性判断</span>
+      </div>
+
+      {violations.length === 0 ? (
+        <p className="checks-empty">全部规则通过 · 未发现工艺冲突</p>
+      ) : (
+        <ul className="checks-list">
+          {violations.map((v, index) => (
+            <li className={`check ${v.level}`} key={`${v.rule_id}-${index}`}>
+              <span className="check-id mono">{v.rule_id}</span>
+              <span className="check-body">
+                <b>{v.part_name}</b>
+                {v.message}
+              </span>
+              <span className="check-level mono">{LEVEL_LABEL[v.level] ?? v.level}</span>
+            </li>
+          ))}
+        </ul>
+      )}
+    </section>
+  )
+}
+
 export default function Result({ quote, summary, order, onDownload, onReset }) {
   const total = useCountUp(quote.total)
   const typed = useTypewriter(summary)
   const lineSubtotal = quote.line_items.reduce((sum, row) => sum + row.line_total, 0)
+
+  const violations = quote.violations ?? []
+  const blocking = violations.filter((v) => v.level === 'error')
+  const blocked = quote.blocked || blocking.length > 0
+
+  const compared = quote.line_items.filter((row) => row.deviation_pct != null)
+  const biggestDev = compared.sort(
+    (a, b) => Math.abs(b.deviation_pct) - Math.abs(a.deviation_pct),
+  )[0]
 
   return (
     <main className="result">
@@ -33,16 +88,30 @@ export default function Result({ quote, summary, order, onDownload, onReset }) {
         <div className="output-block">
           <span className="output-label">OUTPUT · 报价单已生成</span>
           <div className="result-actions">
-            <button className="btn primary" onClick={onDownload} type="button">
+            <button
+              className="btn primary"
+              onClick={onDownload}
+              type="button"
+              disabled={blocked}
+            >
               下载 PDF 报价单 <span className="btn-arrow">↓</span>
             </button>
             <button className="btn ghost" onClick={onReset} type="button">
               重新演示
             </button>
           </div>
-          <span className="output-note">后端 fpdf2 生成 · A4 · 可直接发客户</span>
+          <span className="output-note">
+            {blocked ? '存在阻断级问题 · 需修正后才能出单' : '后端 fpdf2 生成 · A4 · 可直接发客户'}
+          </span>
         </div>
       </div>
+
+      {blocked && (
+        <p className="block-banner">
+          <b>已阻断</b>
+          存在 {blocking.length} 条阻断级工艺问题，规则未通过前不会生成报价单。
+        </p>
+      )}
 
       <div className="result-grid">
         <section className="quote-sheet">
@@ -73,7 +142,10 @@ export default function Result({ quote, summary, order, onDownload, onReset }) {
                   <td className="num">
                     {row.quantity} {row.unit}
                   </td>
-                  <td className="num">¥{fmt(row.unit_price)}</td>
+                  <td className="num">
+                    ¥{fmt(row.unit_price)}
+                    <ReferenceHint reference={row.reference} deviation={row.deviation_pct} />
+                  </td>
                   <td className="num">¥{fmt(row.line_total)}</td>
                   <td className="num">
                     <Change pct={row.change_pct} />
@@ -126,16 +198,26 @@ export default function Result({ quote, summary, order, onDownload, onReset }) {
               </b>
             </div>
             <div>
-              <span>计价方式</span>
-              <b>材料费 + 工序费</b>
+              <span>参考价偏离</span>
+              <b>
+                {biggestDev
+                  ? `${biggestDev.part_name} ${biggestDev.deviation_pct > 0 ? '+' : ''}${biggestDev.deviation_pct}%`
+                  : '无相似历史'}
+              </b>
             </div>
             <div>
-              <span>报价单</span>
-              <b>后端 fpdf2 生成</b>
+              <span>工艺校验</span>
+              <b>{violations.length ? `${violations.length} 项` : '全部通过'}</b>
+            </div>
+            <div>
+              <span>计价方式</span>
+              <b>材料费 + 工序费</b>
             </div>
           </div>
         </section>
       </div>
+
+      <Checks violations={violations} />
     </main>
   )
 }

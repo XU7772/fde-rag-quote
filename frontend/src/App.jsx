@@ -143,7 +143,17 @@ export default function App() {
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({ order: extraction.order, items }),
       })
-      if (!res.ok) throw new Error('PDF 生成失败')
+      if (!res.ok) {
+        // 后端在规则阻断时会返回 400 + 中文原因，原样透出给业务员
+        let detail = `PDF 生成失败（${res.status}）`
+        try {
+          const data = await res.json()
+          if (data.detail) detail = data.detail
+        } catch {
+          /* 非 JSON 错误体，保留默认提示 */
+        }
+        throw new Error(detail)
+      }
 
       const url = URL.createObjectURL(await res.blob())
       const link = document.createElement('a')

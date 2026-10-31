@@ -128,6 +128,9 @@ def pdf(req: QuoteRequest):
             )
         text = generate_summary(result["facts"])
         data = build_pdf(req.order, result, text)
+    except HTTPException:
+        # 规则阻断抛的 400 必须原样透出，不能被下面的兜底吞成 500
+        raise
     except ValueError as exc:
         raise HTTPException(status_code=400, detail=str(exc)) from exc
     except Exception as exc:
